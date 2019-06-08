@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -9,6 +10,8 @@ namespace JT808.DotNetty.Client
     public interface IJT808TcpClientFactory : IDisposable
     {
         JT808TcpClient Create(DeviceConfig deviceConfig);
+
+        List<JT808TcpClient> GetAll();
     }
 
     public class JT808TcpClientFactory: IJT808TcpClientFactory
@@ -49,6 +52,11 @@ namespace JT808.DotNetty.Client
                 {
                 }
             }
+        }
+
+        public List<JT808TcpClient> GetAll()
+        {
+            return dict.Values.ToList();
         }
     }
 }

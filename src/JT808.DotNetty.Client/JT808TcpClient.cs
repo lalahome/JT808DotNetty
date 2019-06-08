@@ -16,6 +16,7 @@ using System.Net;
 using System.Threading.Tasks;
 using JT808.DotNetty.Client.Metadata;
 using JT808.DotNetty.Client.Codecs;
+using JT808.DotNetty.Client.Services;
 
 namespace JT808.DotNetty.Client
 {
@@ -35,6 +36,8 @@ namespace JT808.DotNetty.Client
         {
             DeviceConfig = deviceConfig;
             LoggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+            JT808SendAtomicCounterService jT808SendAtomicCounterService = serviceProvider.GetRequiredService<JT808SendAtomicCounterService>();
+            JT808ReceiveAtomicCounterService jT808ReceiveAtomicCounterService = serviceProvider.GetRequiredService<JT808ReceiveAtomicCounterService>();
             group = new MultithreadEventLoopGroup(1);
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.Group(group);
@@ -52,9 +55,9 @@ namespace JT808.DotNetty.Client
                         Unpooled.CopiedBuffer(new byte[] { JT808.Protocol.JT808Package.EndFlag })));
                    channel.Pipeline.AddLast("systemIdleState", new IdleStateHandler(60, deviceConfig.Heartbeat, 3600));
                    channel.Pipeline.AddLast("jt808TcpDecode", new JT808ClientTcpDecoder());
-                   channel.Pipeline.AddLast("jt808TcpEncode", new JT808ClientTcpEncoder(LoggerFactory));
+                   channel.Pipeline.AddLast("jt808TcpEncode", new JT808ClientTcpEncoder(jT808SendAtomicCounterService,LoggerFactory));
                    channel.Pipeline.AddLast("jt808TcpClientConnection", new JT808TcpClientConnectionHandler(this));
-                   channel.Pipeline.AddLast("jt808TcpService", new JT808TcpClientHandler(this));
+                   channel.Pipeline.AddLast("jt808TcpService", new JT808TcpClientHandler(jT808ReceiveAtomicCounterService,this));
                }));
             clientChannel = bootstrap.ConnectAsync(IPAddress.Parse(DeviceConfig.TcpHost), DeviceConfig.TcpPort).Result;
         }
@@ -67,6 +70,15 @@ namespace JT808.DotNetty.Client
             if (clientChannel.Active && clientChannel.Open)
             {
                 await clientChannel.WriteAndFlushAsync(request);
+            }
+        }
+
+        public bool IsOpen
+        {
+            get
+            {
+                if (clientChannel == null) return false;
+                return clientChannel.Active && clientChannel.Open;
             }
         }
 
